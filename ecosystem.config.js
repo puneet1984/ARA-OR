@@ -2,7 +2,9 @@ module.exports = {
   apps: [
     {
       name: 'omniroute-gateway',
-      script: '/app/omniroute',
+      // Execute OmniRoute via the native node package runner runtime
+      script: 'npm',
+      args: 'run start',
       env: {
         OMNIROUTE_PORT: '20128',
         OMNIROUTE_DATA_DIR: '/app/data'
