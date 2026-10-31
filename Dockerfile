@@ -1,26 +1,26 @@
-# === Unified Production Image ===
+# === Unified Node.js Production Build ===
 FROM node:20-alpine
-RUN apk add --no-cache libc6-compat gcompat curl tar
+RUN apk add --no-cache libc6-compat gcompat curl tar git
 WORKDIR /app
 
-# 1. Install multi-process engine manager
+# 1. Install PM2 globally to handle process orchestration
 RUN npm install -g pm2
 
-# 2. Break down the download variables into short, safe component fragments
-ENV OMNI_BASE=github.com
-ENV OMNI_RELEASE=ChrisCompton/omniroute/releases/download/v1.1.0
-ENV OMNI_TARBALL=omniroute-linux-amd64.tar.gz
+# 2. Download the live source archive of OmniRoute directly from its main branch
+RUN curl -L -o omniroute.tar.gz "https://github.com" \
+    && tar -xzf omniroute.tar.gz --strip-components=1 \
+    && rm omniroute.tar.gz
 
-# 3. Assemble and execute the binary extraction loop on a single row
-RUN curl -L -o omniroute.tar.gz https://${OMNI_BASE}/${OMNI_RELEASE}/${OMNI_TARBALL} && tar -xzf omniroute.tar.gz && chmod +x omniroute
+# 3. Clean install OmniRoute dependencies
+RUN npm ci --omit=dev || npm install --production
 
-# 4. Synchronize application package layers and compile code logic
+# 4. Copy your custom research ingress code into the workspace
 COPY package*.json tsconfig.json ecosystem.config.js ./
-RUN npm ci
+RUN npm install
 COPY src/ ./src
 RUN npm run build
 
-# 5. Prepare local persistent operational folder volumes
+# 5. Establish storage paths and expose default ports
 RUN mkdir -p /app/data /app/uploads
 EXPOSE 3000
 
