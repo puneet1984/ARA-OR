@@ -2,7 +2,7 @@
 FROM alpine:3.19 AS gateway-fetcher
 RUN apk add --no-cache curl tar
 WORKDIR /fetch
-RUN curl -L -o omniroute.tar.gz https://github.com \
+RUN curl -L -o omniroute.tar.gz "https://github.com" \
     && tar -xzf omniroute.tar.gz \
     && mv omniroute /fetch/omniroute
 
