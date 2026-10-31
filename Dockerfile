@@ -2,9 +2,7 @@
 FROM alpine:3.19 AS gateway-fetcher
 RUN apk add --no-cache curl tar
 WORKDIR /fetch
-RUN curl -L -o omniroute.tar.gz "https://github.com" \
-    && tar -xzf omniroute.tar.gz \
-    && mv omniroute /fetch/omniroute
+RUN curl -L -o omniroute.tar.gz "https://github.com" && tar -xzf omniroute.tar.gz && mv omniroute /fetch/omniroute
 
 # === Stage 2: Core Execution Runtime Stage ===
 FROM node:20-alpine
