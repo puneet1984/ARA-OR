@@ -2,12 +2,12 @@ module.exports = {
   apps: [
     {
       name: 'omniroute-gateway',
-      // Execute OmniRoute via the native node package runner runtime
-      script: 'npm',
-      args: 'run start',
+      // Execute the module runner command path directly
+      script: 'npx',
+      args: 'omniroute',
       env: {
-        OMNIROUTE_PORT: '20128',
-        OMNIROUTE_DATA_DIR: '/app/data'
+        PORT: '20128',
+        DATA_DIR: '/app/data'
       },
       restart_delay: 3000,
       autorestart: true
