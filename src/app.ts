@@ -11,6 +11,13 @@ app.use(express.json({ limit: '50mb' }));
 // =========================================================================
 const handleProxyError = (err: any, req: any, res: any) => {
   console.error('[PROXY ERROR] Background gateway warming up or unreachable:', err.message);
+  
+  // If it's an API request, return a clean JSON error response
+  if (req.url.startsWith('/v1')) {
+    return res.status(503).json({ error: "Gateway initializing, please try again in a few seconds." });
+  }
+
+  // If it's a web dashboard request, return the friendly auto-refresh page
   res.status(503).send(`
     <!DOCTYPE html>
     <html>
@@ -29,26 +36,32 @@ const handleProxyError = (err: any, req: any, res: any) => {
 };
 
 // =========================================================================
-// 🌐 LAYER 1: MULTI-PATH NEXT.JS FRONTEND DASHBOARD PROXIES
+// 🌐 LAYER 1: MULTI-PATH NEXT.JS FRONTEND DASHBOARD PROXIES (v3 Syntax)
 // =========================================================================
 app.use('/dashboard', createProxyMiddleware({
   target: 'http://127.0.0.1:20129',
   changeOrigin: true,
   ws: true,
-  onError: handleProxyError,
+  on: {
+    error: handleProxyError
+  },
   logger: console
 }));
 
 app.use('/_next', createProxyMiddleware({
   target: 'http://127.0.0.1:20129',
   changeOrigin: true,
-  onError: (err, req, res) => res.status(200).end() // Prevent asset errors from breaking logs
+  on: {
+    error: (err, req, res: any) => res.status(200).end() // Silently resolve background assets
+  }
 }));
 
 app.use('/callback', createProxyMiddleware({
   target: 'http://127.0.0',
   changeOrigin: true,
-  onError: handleProxyError
+  on: {
+    error: handleProxyError
+  }
 }));
 
 // =========================================================================
@@ -57,7 +70,9 @@ app.use('/callback', createProxyMiddleware({
 app.use('/v1', createProxyMiddleware({
   target: 'http://127.0.0',
   changeOrigin: true,
-  onError: (err, req, res) => res.status(503).json({ error: "Gateway initializing, try again in a few seconds." }),
+  on: {
+    error: handleProxyError
+  },
   logger: console
 }));
 
