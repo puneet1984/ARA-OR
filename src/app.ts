@@ -7,27 +7,48 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '50mb' }));
 
 // =========================================================================
+// 🔄 SELF-HEALING ERROR HANDLER FOR SLOW COLD STARTS
+// =========================================================================
+const handleProxyError = (err: any, req: any, res: any) => {
+  console.error('[PROXY ERROR] Background gateway warming up or unreachable:', err.message);
+  res.status(503).send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Gateway Warming Up</title>
+      <meta http-equiv="refresh" content="5">
+    </head>
+    <body style="font-family:sans-serif; background:#0f172a; color:white; text-align:center; padding-top:20vh;">
+      <h2>⚙️ Background Gateway Initializing</h2>
+      <p>OmniRoute is currently compiling its internal database structures.</p>
+      <p style="color:#94a3b8; font-size:14px;">This page will automatically refresh every 5 seconds until connected...</p>
+      <div style="margin-top:20px; color:#38bdf8;">Please wait...</div>
+    </body>
+    </html>
+  `);
+};
+
+// =========================================================================
 // 🌐 LAYER 1: MULTI-PATH NEXT.JS FRONTEND DASHBOARD PROXIES
 // =========================================================================
-
-// Catch-all route to handle the main UI dashboard layout smoothly
 app.use('/dashboard', createProxyMiddleware({
   target: 'http://127.0.0.1:20129',
   changeOrigin: true,
-  ws: true, // Vital to handle real-time metric streams over WebSockets!
+  ws: true,
+  onError: handleProxyError,
   logger: console
 }));
 
-// CRITICAL: Intercept and route static Next.js scripts, themes, and hydration bundles
 app.use('/_next', createProxyMiddleware({
   target: 'http://127.0.0.1:20129',
-  changeOrigin: true
+  changeOrigin: true,
+  onError: (err, req, res) => res.status(200).end() // Prevent asset errors from breaking logs
 }));
 
-// Route standard OAuth authentication hooks (Google, GitHub, etc.)
 app.use('/callback', createProxyMiddleware({
   target: 'http://127.0.0',
-  changeOrigin: true
+  changeOrigin: true,
+  onError: handleProxyError
 }));
 
 // =========================================================================
@@ -36,6 +57,7 @@ app.use('/callback', createProxyMiddleware({
 app.use('/v1', createProxyMiddleware({
   target: 'http://127.0.0',
   changeOrigin: true,
+  onError: (err, req, res) => res.status(503).json({ error: "Gateway initializing, try again in a few seconds." }),
   logger: console
 }));
 
