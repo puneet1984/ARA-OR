@@ -1,20 +1,18 @@
 import express from 'express';
 
 const app = express();
-// Bind our Express process to internal port 4000 (Nginx listens on public port 3000)
 const PORT = 4000;
 
 app.use(express.json({ limit: '50mb' }));
 
-// Health check endpoint for Render tracking planes
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'healthy', runtime: 'node22' });
 });
 
-// Dynamic Status Checker tracking OmniRoute's live state
 app.get('/api/omniroute-status', async (req, res) => {
   try {
     const response = await fetch('http://127.0.0', {
+      method: 'GET',
       headers: { 'Authorization': `Bearer ${process.env.OMNIROUTE_API_KEY || ''}` }
     });
     
@@ -24,11 +22,10 @@ app.get('/api/omniroute-status', async (req, res) => {
       res.status(200).json({ status: 'INITIALIZING', details: 'Server online, database sockets are warming up...' });
     }
   } catch (error) {
-    res.status(200).json({ status: 'OFFLINE', details: 'Gateway process starting or unreachable.' });
+    res.status(200).json({ status: 'INITIALIZING', details: 'Gateway process starting or unreachable.' });
   }
 });
 
-// HTML Landing Page with Live Asynchronous Polling Status Widget
 app.get('/', (req, res) => {
   res.status(200).send(`
     <!DOCTYPE html>
