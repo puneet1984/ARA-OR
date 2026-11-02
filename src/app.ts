@@ -1,102 +1,74 @@
 import express from 'express';
-import { createProxyMiddleware } from 'http-proxy-middleware';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+// Bind our Express process to internal port 4000 (Nginx listens on public port 3000)
+const PORT = 4000;
 
 app.use(express.json({ limit: '50mb' }));
 
-// =========================================================================
-// 🔄 SELF-HEALING ERROR HANDLER FOR SLOW COLD STARTS
-// =========================================================================
-const handleProxyError = (err: any, req: any, res: any) => {
-  console.error('[PROXY ERROR] Background gateway warming up or unreachable:', err.message);
-  
-  // If it's an API request, return a clean JSON error response
-  if (req.url.startsWith('/v1')) {
-    return res.status(503).json({ error: "Gateway initializing, please try again in a few seconds." });
-  }
-
-  // If it's a web dashboard request, return the friendly auto-refresh page
-  res.status(503).send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Gateway Warming Up</title>
-      <meta http-equiv="refresh" content="5">
-    </head>
-    <body style="font-family:sans-serif; background:#0f172a; color:white; text-align:center; padding-top:20vh;">
-      <h2>⚙️ Background Gateway Initializing</h2>
-      <p>OmniRoute is currently compiling its internal database structures.</p>
-      <p style="color:#94a3b8; font-size:14px;">This page will automatically refresh every 5 seconds until connected...</p>
-      <div style="margin-top:20px; color:#38bdf8;">Please wait...</div>
-    </body>
-    </html>
-  `);
-};
-
-// =========================================================================
-// 🌐 LAYER 1: MULTI-PATH NEXT.JS FRONTEND DASHBOARD PROXIES (v3 Syntax)
-// =========================================================================
-app.use('/dashboard', createProxyMiddleware({
-  target: 'http://127.0.0.1:20129',
-  changeOrigin: true,
-  ws: true,
-  on: {
-    error: handleProxyError
-  },
-  logger: console
-}));
-
-app.use('/_next', createProxyMiddleware({
-  target: 'http://127.0.0.1:20129',
-  changeOrigin: true,
-  on: {
-    error: (err, req, res: any) => res.status(200).end() // Silently resolve background assets
-  }
-}));
-
-app.use('/callback', createProxyMiddleware({
-  target: 'http://127.0.0',
-  changeOrigin: true,
-  on: {
-    error: handleProxyError
-  }
-}));
-
-// =========================================================================
-// 🤖 LAYER 2: OPENAI-COMPATIBLE API BACKEND PROXY (/v1/*)
-// =========================================================================
-app.use('/v1', createProxyMiddleware({
-  target: 'http://127.0.0',
-  changeOrigin: true,
-  on: {
-    error: handleProxyError
-  },
-  logger: console
-}));
-
-// =========================================================================
-// 🔬 LAYER 3: SYSTEM LANDING & MONITORING PATHS
-// =========================================================================
+// Health check endpoint for Render tracking planes
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy', uptime: process.uptime() });
+  res.status(200).json({ status: 'healthy', runtime: 'node22' });
 });
 
+// Dynamic Status Checker tracking OmniRoute's live state
+app.get('/api/omniroute-status', async (req, res) => {
+  try {
+    const response = await fetch('http://127.0.0', {
+      headers: { 'Authorization': `Bearer ${process.env.OMNIROUTE_API_KEY || ''}` }
+    });
+    
+    if (response.ok) {
+      res.status(200).json({ status: 'ONLINE', details: 'Gateway proxy fully initialized and accepting requests.' });
+    } else {
+      res.status(200).json({ status: 'INITIALIZING', details: 'Server online, database sockets are warming up...' });
+    }
+  } catch (error) {
+    res.status(200).json({ status: 'OFFLINE', details: 'Gateway process starting or unreachable.' });
+  }
+});
+
+// HTML Landing Page with Live Asynchronous Polling Status Widget
 app.get('/', (req, res) => {
   res.status(200).send(`
     <!DOCTYPE html>
     <html>
-    <head><title>Research Gateway</title></head>
-    <body style="font-family:sans-serif; background:#0f172a; color:white; text-align:center; padding-top:20vh;">
+    <head>
+      <title>Research Assistant Ingress</title>
+      <script>
+        async function checkStatus() {
+          try {
+            const res = await fetch('/api/omniroute-status');
+            const data = await res.json();
+            const badge = document.getElementById('status-badge');
+            badge.innerText = data.status;
+            if (data.status === 'ONLINE') {
+              badge.style.color = '#10b981';
+            } else if (data.status === 'INITIALIZING') {
+              badge.style.color = '#f59e0b';
+            } else {
+              badge.style.color = '#ef4444';
+            }
+            document.getElementById('status-details').innerText = data.details;
+          } catch(e) { }
+        }
+        setInterval(checkStatus, 3000);
+        window.onload = checkStatus;
+      </script>
+    </head>
+    <body style="font-family:sans-serif; background:#0f172a; color:white; text-align:center; padding-top:15vh;">
       <h1>🔬 Academic Research Assistant Ingress</h1>
-      <p>Proxy Framework Status: <span style="color:#10b981; font-weight:bold;">ONLINE</span></p>
-      <a href="/dashboard" style="display:inline-block; background:#0284c7; color:white; padding:10px 20px; border-radius:5px; text-decoration:none; margin-top:20px;">Open OmniRoute Dashboard</a>
+      <div style="background:#1e293b; padding:20px; display:inline-block; border-radius:8px; border:1px solid #334155;">
+        <p style="font-size:18px;">OmniRoute Status: <span id="status-badge" style="font-weight:bold; color:#f59e0b;">CHECKING...</span></p>
+        <p id="status-details" style="color:#94a3b8; font-size:14px;">Querying internal background services...</p>
+      </div>
+      <br><br>
+      <a href="/dashboard" style="display:inline-block; background:#0284c7; color:white; padding:12px 24px; border-radius:5px; text-decoration:none; font-weight:bold; transition:0.2s;">Open OmniRoute Dashboard</a>
     </body>
     </html>
   `);
 });
 
 app.listen(PORT, () => {
-  console.log(`[INGRESS] API Router plane running live on port ${PORT}`);
+  console.log(`[INGRESS] Express API tracking engine launched on port ${PORT}`);
 });
