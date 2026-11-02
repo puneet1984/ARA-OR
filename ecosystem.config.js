@@ -3,7 +3,6 @@ module.exports = {
     {
       name: 'nginx-reverse-proxy',
       script: 'nginx',
-      // Run Nginx in the foreground so PM2 can trace its logs cleanly
       args: '-g "daemon off;"',
       autorestart: true
     },
@@ -17,6 +16,10 @@ module.exports = {
         OMNIROUTE_SERVER_HOST: '127.0.0.1',
         DATA_DIR: '/app/data',
         REQUIRE_API_KEY: 'true',
+        
+        // 🚀 CRITICAL OVERRIDES TO BREAK REDIRECT LOOPS 🚀
+        OMNIROUTE_HEADLESS: '1', // Disables internal client domain checks
+        NODE_ENV: 'production',
         NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || 'https://onrender.com'
       },
       restart_delay: 3000,
@@ -26,7 +29,7 @@ module.exports = {
       name: 'research-ingress-api',
       script: 'dist/app.js',
       env: {
-        PORT: '4000', // Moved internally to 4000 behind Nginx
+        PORT: '4000', 
         OMNIROUTE_URL: 'http://127.0.0',
         OMNIROUTE_API_KEY: process.env.OMNIROUTE_API_KEY
       },
