@@ -8,8 +8,8 @@ module.exports = {
     },
     {
       name: 'omniroute-gateway',
-      script: 'node',
-      args: '/app/omniroute-core/dist/server.js',
+      script: 'npx',
+      args: 'omniroute',
       env: {
         PORT: '20128',
         DASHBOARD_PORT: '20129',
