@@ -17,10 +17,11 @@ module.exports = {
         DATA_DIR: '/app/data',
         REQUIRE_API_KEY: 'true',
         
-        // 🚀 CRITICAL OVERRIDES TO BREAK REDIRECT LOOPS 🚀
-        OMNIROUTE_HEADLESS: '1', // Disables internal client domain checks
+        // 🚀 THE FIX: ENABLE DASHBOARD & TRUST NGINX PROXY HEADERS 🚀
+        OMNIROUTE_HEADLESS: '0', // Turn OFF headless mode to enable the dashboard UI!
+        TRUST_PROXY: 'true',     // Tells OmniRoute to trust Nginx and stop 301 loops
         NODE_ENV: 'production',
-        NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || 'https://onrender.com'
+        NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || 'https://research-omniroute-service.onrender.com'
       },
       restart_delay: 3000,
       autorestart: true
